@@ -5,12 +5,17 @@ import csv
 import math
 
 input_csv = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/output/AO_order.csv'
-output_csv = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/output/AO_order_w_depth.csv'
+output_csv = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/output/output_depth.csv'
+
 depth = np.load('/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/output/AO_order.npy')
-summary_output_csv = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/output/AO_order_summary_stat.csv'
-headers = ["ID", "x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid",]
+
+summary_output_csv = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/output/summary_stat.csv'
+
+headers = ["image","ID", "x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid"]
 
 updated_data = []
+
+
 with open(output_csv, mode="w", newline="") as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(headers)
