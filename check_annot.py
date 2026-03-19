@@ -34,6 +34,6 @@ def plot_annotations(image_path, csv_path):
 
 # Example usage
 plot_annotations(
-    "/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/testing/blacktip_123023_6_sl27_slw.jpg",
-    "/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/testing/blacktip_123023_6_sl27_slw_annotations.csv"
+    "/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/testing/Tarpon_010324_3_sl4_sh.jpg",
+    "/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/testing/Tarpon_010324_3_sl4_sh_annotations.csv"
 )
