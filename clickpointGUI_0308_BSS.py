@@ -10,6 +10,7 @@ import csv
 import os
 import pandas as pd
 from collections import OrderedDict
+import PIL.ImageOps as ImageOps
 
 # Initialize Global variables
 current_frame_index = [0]
@@ -68,8 +69,50 @@ def put_cache(index, frame):
     if len(frame_cache) > frame_cache_size:
         frame_cache.popitem(last=False)
 
-# Load Video Function
 def load_video():
+    global orig_vid_height, orig_vid_width, aspect_ratio, special_frame_interval
+    global cap, fps, total_frames, cap_last_frame, cap_last_index, current_frame_index
+    global video_size_x, video_size_y
+
+    file_path = filedialog.askopenfilename(
+        filetypes=[("Image Files", "*.jpg *.jpeg *.png")]
+    )
+    if not file_path:
+        return
+
+    # ---- LOAD IMAGE (NOT VIDEO) ----
+    img = Image.open(file_path)
+
+    # fix possible rotation (IMPORTANT)
+    img = ImageOps.exif_transpose(img)
+
+    frame = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+    # store as single-frame "video"
+    cap = [frame]
+
+    # fake video metadata
+    fps = 1
+    total_frames = 1
+
+    orig_vid_height, orig_vid_width = frame.shape[:2]
+    aspect_ratio = orig_vid_width / orig_vid_height
+    video_size_y = int(video_size_x / aspect_ratio)
+
+    special_frame_interval = 1
+
+    cap_last_frame = None
+    cap_last_index = None
+
+    current_frame_index[0] = 0
+
+    slider_frame.configure(to=0)
+    slider_frame.set(0)
+
+    update_frame_display()
+
+# Load Video Function
+def load_video_old():
     global orig_vid_height, orig_vid_width, aspect_ratio, special_frame_interval
     global cap, fps, total_frames, cap_last_frame, cap_last_index, current_frame_index
     global video_size_x, video_size_y
@@ -83,7 +126,15 @@ def load_video():
         except Exception:
             pass
 
-    cap = cv2.VideoCapture(file_path)
+    img = Image.open(file_path)
+    img = ImageOps.exif_transpose(img)  # fixes rotation
+
+    img = img.convert("RGB")
+    frame = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+    # simulate video with single frame (since you're using image input)
+    cap = [frame]
+    total_frames = 1
 
     # Video metadata
     fps = cap.get(cv2.CAP_PROP_FPS) or 30  # Update FPS dynamically
@@ -103,8 +154,49 @@ def load_video():
     current_frame_index[0] = 0
     update_frame_display()
 
-# Read cached frames efficiently
 def read_frame(index):
+    global cap, cap_last_frame, cap_last_index, total_frames
+
+    if cap is None:
+        return None
+
+    # --- IMAGE MODE (your current case) ---
+    if isinstance(cap, list):
+        if index != 0:
+            return None
+        return cap[0]
+
+    # --- VIDEO MODE (original behavior) ---
+    if index < 0 or index >= total_frames:
+        return None
+
+    cached = get_cache(index)
+    if cached is not None:
+        return cached
+
+    # sequential read
+    if (cap_last_index is not None) and (index == cap_last_index + 1):
+        ret, frame = cap.read()
+        if not ret:
+            return None
+        cap_last_index = index
+        cap_last_frame = frame
+        put_cache(index, frame)
+        return frame
+
+    # random access
+    cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+    ret, frame = cap.read()
+    if not ret:
+        return None
+
+    cap_last_index = index
+    cap_last_frame = frame
+    put_cache(index, frame)
+    return frame
+
+# Read cached frames efficiently
+def read_frame_old(index):
     """
     Efficient frame reader:
       - reuses cached last frame if index == cap_last_index
