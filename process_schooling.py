@@ -27,6 +27,10 @@ for filename in os.listdir(depth_path):
 
     count += 1
 
+    headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid"]
+
+    updated_data = []
+
     with open(output_csv, mode="w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(headers)
@@ -95,7 +99,7 @@ for filename in os.listdir(depth_path):
 
                 writer.writerow(updated_row)
 
-        print("individual metrics calculated!")
+        print("individual metrics calculated for", filename_clean)
 
     updated_data = pd.DataFrame(updated_data, columns=headers)
 
@@ -123,7 +127,7 @@ for filename in os.listdir(depth_path):
         summary_data.append(updated_row)
         writer.writerow(updated_row)
 
-    print("summary data calculated!")
+    print("summary data calculated for", filename_clean)
 
     rows = []
     updated_data = []
@@ -212,6 +216,6 @@ for filename in os.listdir(depth_path):
         writer.writerow(headers2)
         writer.writerow(summary_data[0])
 
-    print("inter-individual metrics calculated!")
+    print("inter-individual metrics calculated for",filename_clean)
 
 
