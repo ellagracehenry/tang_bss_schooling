@@ -116,12 +116,13 @@ for filename in os.listdir(depth_path):
         centre_y = updated_data["y_mid"].mean()
         centre_z = updated_data["z_mid"].mean()
 
-        #Average heading of school
-        summed_x = updated_data["heading_x"].sum()
-        summed_y = updated_data["heading_y"].sum()
-        summed_z = updated_data["heading_z"].sum()
+        #Sum up all the unit vectors and divide by count - basically average heading of school
+        summed_x = updated_data["heading_x"].sum()/updated_data["heading_x"].count()
+        summed_y = updated_data["heading_y"].sum()/updated_data["heading_y"].count()
+        summed_z = updated_data["heading_z"].sum()/updated_data["heading_z"].count()
 
-        polarisation = math.sqrt(summed_x**2 + summed_y**2 + summed_z**2)/updated_data["heading_x"].count()
+        #Compute the magnitude of the averaged vector. yields a scalar value between 0 and 1
+        polarisation = math.sqrt(summed_x**2 + summed_y**2 + summed_z**2)
 
         updated_row = [median_bl, centre_x, centre_y, centre_z, polarisation]
         summary_data.append(updated_row)
