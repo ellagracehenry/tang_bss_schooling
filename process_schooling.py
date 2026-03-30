@@ -205,7 +205,7 @@ for filename in os.listdir(depth_path):
 
     # Calculate group cohesion
     df = pd.DataFrame(updated_data, columns=headers)
-    group_cohesion = df["dist_from_centre"].median()
+    group_cohesion = df["norm_dist_from_centre"].median()
 
     # Update the first (and only) row in summary_data by appending group_cohesion
     summary_data[0].append(group_cohesion)
