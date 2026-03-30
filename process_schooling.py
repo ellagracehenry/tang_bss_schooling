@@ -145,14 +145,14 @@ for filename in os.listdir(depth_path):
         writer.writerow(headers)  # Write headers
 
         for i, focal in enumerate(rows):
-                
+
             #NND distances between centres of axes
-            fx = float(focal[11])
-            fy = float(focal[12])
-            fz = float(focal[13])
-            hi_x = float(focal[8])  
-            hi_y = float(focal[9])
-            hi_z = float(focal[10])
+            fx = float(focal[12])
+            fy = float(focal[13])
+            fz = float(focal[14])
+            hi_x = float(focal[9])  
+            hi_y = float(focal[10])
+            hi_z = float(focal[11])
 
             #Distance from centre of school
             dist_from_centre = math.sqrt((fx - centre_x)**2 + (fy - centre_y)**2 + (fz - centre_z)**2)
@@ -164,9 +164,9 @@ for filename in os.listdir(depth_path):
                 if i == j:
                     continue  # skip self
 
-                ox = float(other[11])
-                oy = float(other[12])
-                oz = float(other[13])
+                ox = float(other[12])
+                oy = float(other[13])
+                oz = float(other[14])
 
                 dist = math.sqrt(
                     (fx - ox)**2 +
@@ -181,9 +181,9 @@ for filename in os.listdir(depth_path):
             norm_nnd = min_nnd/median_bl
 
             # get nearest neighbour heading
-            hj_x = float(rows[nnd_id][8])
-            hj_y = float(rows[nnd_id][9])
-            hj_z = float(rows[nnd_id][10])
+            hj_x = float(rows[nnd_id][9])
+            hj_y = float(rows[nnd_id][10])
+            hj_z = float(rows[nnd_id][11])
 
             # heading alignment (dot product, headings are unit vectors)
             heading_nn = hi_x * hj_x + hi_y * hj_y + hi_z * hj_z
@@ -205,7 +205,7 @@ for filename in os.listdir(depth_path):
 
     # Calculate group cohesion
     df = pd.DataFrame(updated_data, columns=headers)
-    group_cohesion = df["norm_dist_from_centre"].median()
+    group_cohesion = df["dist_from_centre"].median()
 
     # Update the first (and only) row in summary_data by appending group_cohesion
     summary_data[0].append(group_cohesion)
