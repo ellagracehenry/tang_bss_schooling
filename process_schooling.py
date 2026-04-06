@@ -4,14 +4,28 @@ import pandas as pd
 import csv
 import math
 from collections import defaultdict
+import argparse
+from pathlib import Path
 
 headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid"]
 
 updated_data = []
 
-depth_path = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/testing/depth_maps'
-annotations_path = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/testing/annotations'
-output_path = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/testing/output'
+    
+parser = argparse.ArgumentParser(description='Create chunking strategy for dense reconstruction')
+parser.add_argument('--depth_path', type=str, required=True, help='Path to folder with depth maps')
+parser.add_argument('--annotations_path', type=str, required=True, help='Path to folder with annotations')
+parser.add_argument('--output_path', type=str, required=True, help='Path to output folder')
+
+args = parser.parse_args()
+    
+depth_path = Path(args.depth_path)
+annotations_path = Path(args.annotations_path)
+output_path = Path(args.output_path)
+
+#depth_path = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/testing/depth_maps'
+#annotations_path = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/testing/annotations'
+#output_path = '/Users/ellag/Desktop/PhD/academic_projects/tang_bss_schooling/testing/output'
 count = 0
 
 for filename in os.listdir(depth_path):
@@ -132,7 +146,7 @@ for filename in os.listdir(depth_path):
 
     rows = []
     updated_data = []
-    headers = ["image ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","dist_from_centre","NND","heading_nn","heading_rel_to_group"]
+    headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","dist_from_centre","NND","heading_nn","heading_rel_to_group"]
        
     with open(output_csv, "r") as csvfile1:
         reader = csv.reader(csvfile1)
