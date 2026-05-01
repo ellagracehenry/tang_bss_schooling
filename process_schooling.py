@@ -44,6 +44,7 @@ for filename in os.listdir(depth_path):
     headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid"]
 
     updated_data = []
+    temp_data = []
 
     with open(output_csv, mode="w", newline="") as csvfile:
         writer = csv.writer(csvfile)
@@ -90,28 +91,72 @@ for filename in os.listdir(depth_path):
                 if head is None or tail is None:
                     continue
 
-                #body length
-                body_length = math.sqrt((x_head - x_tail)**2 + (y_head - y_tail)**2 + (z_head - z_tail)**2)
+                temp_row = [count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail]
 
-                #vector
-                heading_x = (x_head - x_tail)/body_length
-                heading_y = (y_head - y_tail)/body_length
-                heading_z = (z_head - z_tail)/body_length
+                temp_data.append(temp_row)
 
-                #fish midpoint
-                x_mid = (x_head+x_tail)/2
-                y_mid = (y_head+y_tail)/2
-                z_mid = (z_head+z_tail)/2
+        print("Raw Z indexed for head and tail...")
 
-                updated_row = [count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail, 
-                    body_length, 
-                    heading_x, heading_y, heading_z,
-                    x_mid, y_mid, z_mid
-                ]
+        temp_data = pd.DataFrame(temp_data, columns=["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail"])
 
-                updated_data.append(updated_row)
+        #Centre x y z head
+        x_centred = temp_data["x_head"] - temp_data["x_head"].mean()
+        y_centred = temp_data["y_head"] - temp_data["y_head"].mean()
+        z_centred = temp_data["z_head"] - temp_data["z_head"].mean()
 
-                writer.writerow(updated_row)
+        spr_x_centred = x_centred.std()
+        spr_y_centred = y_centred.std()
+        spr_z_centred = z_centred.std()
+
+        #average xy spread
+        spr_xy = 0.5 * (spr_x_centred + spr_y_centred)
+
+        #scale factor z
+        sf_z = spr_xy/spr_z_centred
+
+        #Calculate scaled z head
+        z_head_scaled = sf_z * z_centred
+
+        #Calculate scaled z tail       
+        z_centred_tail = temp_data["z_tail"] - temp_data["z_tail"].mean()
+        z_tail_scaled = sf_z * z_centred_tail
+
+        #Add to dataframe
+        temp_data["z_head_scaled"] = z_head_scaled
+        temp_data["z_tail_scaled"] = z_tail_scaled
+
+        #Convert to list of dicts for easy row access
+        for index, row in temp_data.iterrows():
+            x_head = row["x_head"]
+            y_head = row["y_head"]
+            x_tail = row["x_tail"]
+            y_tail = row["y_tail"]
+            z_head = row["z_head_scaled"]
+            z_tail = row["z_tail_scaled"]
+            obj_id = row["individual_ID"]
+
+            #body length
+            body_length = math.sqrt((x_head - x_tail)**2 + (y_head - y_tail)**2 + (z_head - z_tail)**2)
+
+            #vector
+            heading_x = (x_head - x_tail)/body_length
+            heading_y = (y_head - y_tail)/body_length
+            heading_z = (z_head - z_tail)/body_length
+
+            #fish midpoint
+            x_mid = (x_head+x_tail)/2
+            y_mid = (y_head+y_tail)/2
+            z_mid = (z_head+z_tail)/2
+
+            updated_row = [count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail, 
+                body_length, 
+                heading_x, heading_y, heading_z,
+                x_mid, y_mid, z_mid
+            ]
+
+            updated_data.append(updated_row)
+
+            writer.writerow(updated_row)
 
         print("individual metrics calculated for", filename_clean)
 
