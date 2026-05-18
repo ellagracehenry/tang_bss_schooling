@@ -291,7 +291,7 @@ for filename in summary_files:
     summary_dfs.append(df)
 
 df_out_summary = pd.concat(summary_dfs, axis=0, ignore_index=False)
-df_out_summary.to_csv(f'{output_path}/global_summary.csv')
+df_out_summary.to_csv(f'{output_path}/summary_global.csv')
 
 #Write all individual files to one file
 individual_files = glob.glob(
@@ -305,7 +305,7 @@ for filename in individual_files:
     individual_dfs.append(df)
 
 df_out_individual = pd.concat(individual_dfs, axis=0, ignore_index=False)
-df_out_individual.to_csv(f'{output_path}/global_individual.csv')
+df_out_individual.to_csv(f'{output_path}/individual_global.csv')
 
 
 
