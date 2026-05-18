@@ -6,6 +6,7 @@ import math
 from collections import defaultdict
 import argparse
 from pathlib import Path
+import glob
 
 headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid"]
 
@@ -162,7 +163,7 @@ for filename in os.listdir(depth_path):
 
     updated_data = pd.DataFrame(updated_data, columns=headers)
 
-    headers_summary = ["median_bl","centre_x","centre_y","centre_z","polarisation"]
+    headers_summary = ["image_ID","median_bl","centre_x","centre_y","centre_z","polarisation"]
     summary_data = []
     with open(summary_output_csv, mode='w') as csvfile:
         writer = csv.writer(csvfile)
@@ -183,7 +184,7 @@ for filename in os.listdir(depth_path):
         #Compute the magnitude of the averaged vector. yields a scalar value between 0 and 1
         polarisation = math.sqrt(summed_x**2 + summed_y**2 + summed_z**2)
 
-        updated_row = [median_bl, centre_x, centre_y, centre_z, polarisation]
+        updated_row = [count, median_bl, centre_x, centre_y, centre_z, polarisation]
         summary_data.append(updated_row)
         writer.writerow(updated_row)
 
@@ -270,12 +271,41 @@ for filename in os.listdir(depth_path):
     summary_data[0].append(group_cohesion)
 
     # Now write the summary CSV with updated header and row
-    headers2 = ["median_bl","centre_x","centre_y","centre_z","polarisation","group_cohesion"]
+    headers2 = ["image_ID","median_bl","centre_x","centre_y","centre_z","polarisation","group_cohesion"]
     with open(summary_output_csv, mode='w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(headers2)
         writer.writerow(summary_data[0])
 
-    print("inter-individual metrics calculated for",filename_clean)
+    print("inter-individual metrics calculated for", filename_clean)
+
+#Write all summary files to one file
+summary_files = glob.glob(
+    os.path.join(output_path, "*summary.csv")
+)
+
+summary_dfs = []
+
+for filename in summary_files:
+    df = pd.read_csv(filename, index_col=False)
+    summary_dfs.append(df)
+
+df_out_summary = pd.concat(summary_dfs, axis=0, ignore_index=False)
+df_out_summary.to_csv(f'{output_path}/global_summary.csv')
+
+#Write all individual files to one file
+individual_files = glob.glob(
+    os.path.join(output_path, "*individual.csv")
+)
+
+individual_dfs = []
+
+for filename in individual_files:
+    df = pd.read_csv(filename, index_col=False)
+    individual_dfs.append(df)
+
+df_out_individual = pd.concat(individual_dfs, axis=0, ignore_index=False)
+df_out_individual.to_csv(f'{output_path}/global_individual.csv')
+
 
 
