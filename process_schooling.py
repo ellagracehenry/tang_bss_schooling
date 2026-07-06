@@ -192,7 +192,7 @@ for filename in os.listdir(depth_path):
 
     rows = []
     updated_data = []
-    headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","dist_from_centre","NND","heading_nn","heading_rel_to_group"]
+    headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group"]
        
     with open(output_csv, "r") as csvfile1:
         reader = csv.reader(csvfile1)
@@ -256,7 +256,7 @@ for filename in os.listdir(depth_path):
             heading_group = hi_x*Px + hi_y*Py + hi_z*Pz
 
             # Append new metrics to the row
-            enriched_row = focal + [norm_dist_from_centre, norm_nnd, heading_nn, heading_group]
+            enriched_row = focal + [median_bl, norm_dist_from_centre, norm_nnd, heading_nn, heading_group]
             updated_data.append(enriched_row)
 
             # Write row to CSV
