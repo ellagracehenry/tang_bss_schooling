@@ -188,9 +188,8 @@ for filename in os.listdir(depth_path):
         polarisation = math.sqrt(summed_x**2 + summed_y**2 + summed_z**2)
 
         #Back individual
-        if (updated_data["x_head"] - updated_data["x_tail"]).mean() > 0:
-            mid_back_x = min(updated_data["x_mid"])
-            #print(updated_data.loc[updated_data['x_mid'] == mid_back_x]["y_mid"].values[0])
+        if (updated_data["x_head"] - updated_data["x_tail"]).mean() < 0:
+            mid_back_x = updated_data["x_mid"].min()
 
             mid_back_y = updated_data["y_mid"][updated_data["x_mid"] == mid_back_x].values[0]
             mid_back_z = updated_data["z_mid"][updated_data["x_mid"] == mid_back_x].values[0]
