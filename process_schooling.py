@@ -66,6 +66,9 @@ for filename in os.listdir(depth_path):
                 head = None
                 tail = None
 
+                if len(obj_id) > 3:
+                    continue
+
                 for row in rows:
                     obj_type = row[3].strip()
 
@@ -163,7 +166,7 @@ for filename in os.listdir(depth_path):
 
     updated_data = pd.DataFrame(updated_data, columns=headers)
 
-    headers_summary = ["image_ID","median_bl","centre_x","centre_y","centre_z","polarisation"]
+    headers_summary = ["image_ID","median_bl","centre_x","centre_y","centre_z","polarisation", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z"]
     summary_data = []
     with open(summary_output_csv, mode='w') as csvfile:
         writer = csv.writer(csvfile)
@@ -184,7 +187,25 @@ for filename in os.listdir(depth_path):
         #Compute the magnitude of the averaged vector. yields a scalar value between 0 and 1
         polarisation = math.sqrt(summed_x**2 + summed_y**2 + summed_z**2)
 
-        updated_row = [count, median_bl, centre_x, centre_y, centre_z, polarisation]
+        #Back individual
+        if (updated_data["x_head"] - updated_data["x_tail"]).mean() > 0:
+            mid_back_x = min(updated_data["x_mid"])
+            #print(updated_data.loc[updated_data['x_mid'] == mid_back_x]["y_mid"].values[0])
+
+            mid_back_y = updated_data["y_mid"][updated_data["x_mid"] == mid_back_x].values[0]
+            mid_back_z = updated_data["z_mid"][updated_data["x_mid"] == mid_back_x].values[0]
+        else:
+            mid_back_x = updated_data["x_mid"].max()
+            mid_back_y = updated_data["y_mid"][updated_data["x_mid"] == mid_back_x].values[0]
+            mid_back_z = updated_data["z_mid"][updated_data["x_mid"] == mid_back_x].values[0]
+
+        #Highest individual
+        mid_high_y = max(updated_data["y_mid"])
+        mid_high_x = updated_data["x_mid"][updated_data["y_mid"] == mid_high_y].values[0]
+        mid_high_z = updated_data["z_mid"][updated_data["y_mid"] == mid_high_y].values[0]
+        
+
+        updated_row = [count, median_bl, centre_x, centre_y, centre_z, polarisation, mid_back_x, mid_back_y, mid_back_z, mid_high_x, mid_high_y, mid_high_z]
         summary_data.append(updated_row)
         writer.writerow(updated_row)
 
@@ -192,7 +213,7 @@ for filename in os.listdir(depth_path):
 
     rows = []
     updated_data = []
-    headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group"]
+    headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group", "back_ind", "highest_ind", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "dist_to_back", "dist_to_highest", "norm_dist_to_back", "norm_dist_to_highest"]
        
     with open(output_csv, "r") as csvfile1:
         reader = csv.reader(csvfile1)
@@ -255,8 +276,37 @@ for filename in os.listdir(depth_path):
 
             heading_group = hi_x*Px + hi_y*Py + hi_z*Pz
 
+            #back individual
+            if fx == mid_back_x:
+                back_ind = 1
+            else:
+                back_ind = 0
+
+            mid_back_x = mid_back_x
+            mid_back_y = mid_back_y
+            mid_back_z = mid_back_z
+
+
+            #distance to back
+            dist_from_back = math.sqrt((fx - mid_back_x)**2 + (fy - mid_back_y)**2 + (fz - mid_back_z)**2)
+            norm_dist_from_back = dist_from_back/median_bl
+
+            #high individual
+            if fy == mid_high_y:
+                highest_ind = 1
+            else:
+                highest_ind = 0
+
+            mid_high_x = mid_high_x
+            mid_high_y = mid_high_y
+            mid_high_z = mid_high_z
+
+            #distance to highest
+            dist_from_highest = math.sqrt((fx - mid_high_x )**2 + (fy - mid_high_y)**2 + (fz - mid_high_z)**2)
+            norm_dist_from_highest = dist_from_highest/median_bl
+
             # Append new metrics to the row
-            enriched_row = focal + [median_bl, norm_dist_from_centre, norm_nnd, heading_nn, heading_group]
+            enriched_row = focal + [median_bl, norm_dist_from_centre, norm_nnd, heading_nn, heading_group, back_ind, highest_ind, mid_back_x, mid_back_y, mid_back_z, mid_high_x, mid_high_y, mid_high_z, dist_from_back, dist_from_highest, norm_dist_from_back, norm_dist_from_highest]
             updated_data.append(enriched_row)
 
             # Write row to CSV
@@ -271,7 +321,7 @@ for filename in os.listdir(depth_path):
     summary_data[0].append(group_cohesion)
 
     # Now write the summary CSV with updated header and row
-    headers2 = ["image_ID","median_bl","centre_x","centre_y","centre_z","polarisation","group_cohesion"]
+    headers2 = ["image_ID","median_bl","centre_x","centre_y","centre_z","polarisation","mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "group_cohesion"]
     with open(summary_output_csv, mode='w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(headers2)
