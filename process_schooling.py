@@ -8,7 +8,7 @@ import argparse
 from pathlib import Path
 import glob
 
-headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid"]
+headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid"]
 
 updated_data = []
 
@@ -42,7 +42,7 @@ for filename in os.listdir(depth_path):
 
     count += 1
 
-    headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid"]
+    headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid"]
 
     updated_data = []
     temp_data = []
@@ -95,13 +95,13 @@ for filename in os.listdir(depth_path):
                 if head is None or tail is None:
                     continue
 
-                temp_row = [count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail]
+                temp_row = [filename_clean, count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail]
 
                 temp_data.append(temp_row)
 
         print("Raw Z indexed for head and tail...")
 
-        temp_data = pd.DataFrame(temp_data, columns=["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail"])
+        temp_data = pd.DataFrame(temp_data, columns=["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail"])
 
         #Centre x y z head
         x_centred = temp_data["x_head"] - temp_data["x_head"].mean()
@@ -152,7 +152,7 @@ for filename in os.listdir(depth_path):
             y_mid = (y_head+y_tail)/2
             z_mid = (z_head+z_tail)/2
 
-            updated_row = [count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail, 
+            updated_row = [filename_clean, count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail, 
                 body_length, 
                 heading_x, heading_y, heading_z,
                 x_mid, y_mid, z_mid
@@ -188,7 +188,7 @@ for filename in os.listdir(depth_path):
         polarisation = math.sqrt(summed_x**2 + summed_y**2 + summed_z**2)
 
         #Back individual
-        if (updated_data["x_head"] - updated_data["x_tail"]).mean() < 0:
+        if (updated_data["x_head"] - updated_data["x_tail"]).mean() > 0:
             mid_back_x = updated_data["x_mid"].min()
 
             mid_back_y = updated_data["y_mid"][updated_data["x_mid"] == mid_back_x].values[0]
@@ -199,7 +199,7 @@ for filename in os.listdir(depth_path):
             mid_back_z = updated_data["z_mid"][updated_data["x_mid"] == mid_back_x].values[0]
 
         #Highest individual
-        mid_high_y = max(updated_data["y_mid"])
+        mid_high_y = updated_data["y_mid"].max()
         mid_high_x = updated_data["x_mid"][updated_data["y_mid"] == mid_high_y].values[0]
         mid_high_z = updated_data["z_mid"][updated_data["y_mid"] == mid_high_y].values[0]
         
@@ -212,7 +212,7 @@ for filename in os.listdir(depth_path):
 
     rows = []
     updated_data = []
-    headers = ["image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group", "back_ind", "highest_ind", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "dist_to_back", "dist_to_highest", "norm_dist_to_back", "norm_dist_to_highest"]
+    headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group", "back_ind", "highest_ind", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "dist_to_back", "dist_to_highest", "norm_dist_to_back", "norm_dist_to_highest"]
        
     with open(output_csv, "r") as csvfile1:
         reader = csv.reader(csvfile1)
@@ -227,12 +227,12 @@ for filename in os.listdir(depth_path):
         for i, focal in enumerate(rows):
 
             #NND distances between centres of axes
-            fx = float(focal[12])
-            fy = float(focal[13])
-            fz = float(focal[14])
-            hi_x = float(focal[9])  
-            hi_y = float(focal[10])
-            hi_z = float(focal[11])
+            fx = float(focal[13])
+            fy = float(focal[14])
+            fz = float(focal[15])
+            hi_x = float(focal[10])  
+            hi_y = float(focal[11])
+            hi_z = float(focal[12])
 
             #Distance from centre of school
             dist_from_centre = math.sqrt((fx - centre_x)**2 + (fy - centre_y)**2 + (fz - centre_z)**2)
@@ -244,9 +244,9 @@ for filename in os.listdir(depth_path):
                 if i == j:
                     continue  # skip self
 
-                ox = float(other[12])
-                oy = float(other[13])
-                oz = float(other[14])
+                ox = float(other[13])
+                oy = float(other[14])
+                oz = float(other[15])
 
                 dist = math.sqrt(
                     (fx - ox)**2 +
@@ -261,9 +261,9 @@ for filename in os.listdir(depth_path):
             norm_nnd = min_nnd/median_bl
 
             # get nearest neighbour heading
-            hj_x = float(rows[nnd_id][9])
-            hj_y = float(rows[nnd_id][10])
-            hj_z = float(rows[nnd_id][11])
+            hj_x = float(rows[nnd_id][10])
+            hj_y = float(rows[nnd_id][11])
+            hj_z = float(rows[nnd_id][12])
 
             # heading alignment (dot product, headings are unit vectors)
             heading_nn = hi_x * hj_x + hi_y * hj_y + hi_z * hj_z
