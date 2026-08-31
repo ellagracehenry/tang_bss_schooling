@@ -34,6 +34,8 @@ for filename in os.listdir(depth_path):
 
     output_csv = os.path.join(output_path, filename_clean + "_individual.csv")
 
+    output_nnd_csv = os.path.join(output_path, filename_clean + "_individual_nnd.csv")
+
     input_csv = os.path.join(annotations_path, filename_clean + "_annotations.csv")
     
     depth = np.load(os.path.join(depth_path, filename_clean + ".npy"))
@@ -47,6 +49,7 @@ for filename in os.listdir(depth_path):
     updated_data = []
     temp_data = []
 
+    #Calculate depth on all
     with open(output_csv, mode="w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(headers)
@@ -66,8 +69,8 @@ for filename in os.listdir(depth_path):
                 head = None
                 tail = None
 
-                if len(obj_id) > 3:
-                    continue
+                #if len(obj_id) > 3:
+                #    continue
 
                 for row in rows:
                     obj_type = row[3].strip()
@@ -103,26 +106,30 @@ for filename in os.listdir(depth_path):
 
         temp_data = pd.DataFrame(temp_data, columns=["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail"])
 
-        #Centre x y z head
-        x_centred = temp_data["x_head"] - temp_data["x_head"].mean()
-        y_centred = temp_data["y_head"] - temp_data["y_head"].mean()
-        z_centred = temp_data["z_head"] - temp_data["z_head"].mean()
+        temp_data["individual_ID"] = temp_data["individual_ID"].astype(str)
 
-        spr_x_centred = x_centred.std()
-        spr_y_centred = y_centred.std()
-        spr_z_centred = z_centred.std()
+        filtered_temp = temp_data[temp_data["individual_ID"].str.len() < 3]
+
+        #Centre x y z head
+        x_centred_head = filtered_temp["x_head"] - filtered_temp["x_head"].mean()
+        y_centred_head = filtered_temp["y_head"] - filtered_temp["y_head"].mean()
+        z_centred_head = filtered_temp["z_head"] - filtered_temp["z_head"].mean()
+
+        spr_x_centred_head = x_centred_head.std()
+        spr_y_centred_head = y_centred_head.std()
+        spr_z_centred_head = z_centred_head.std()
 
         #average xy spread
-        spr_xy = 0.5 * (spr_x_centred + spr_y_centred)
-
+        spr_xy = 0.5 * (spr_x_centred_head + spr_y_centred_head)
         #scale factor z
-        sf_z = spr_xy/spr_z_centred
+        sf_z = spr_xy/spr_z_centred_head
 
         #Calculate scaled z head
-        z_head_scaled = sf_z * z_centred
+        z_centred_head = temp_data["z_head"] - filtered_temp["z_head"].mean()
+        z_head_scaled = sf_z * z_centred_head
 
         #Calculate scaled z tail       
-        z_centred_tail = temp_data["z_tail"] - temp_data["z_tail"].mean()
+        z_centred_tail = temp_data["z_tail"] - filtered_temp["z_head"].mean()
         z_tail_scaled = sf_z * z_centred_tail
 
         #Add to dataframe
@@ -168,40 +175,45 @@ for filename in os.listdir(depth_path):
 
     headers_summary = ["image_ID","median_bl","centre_x","centre_y","centre_z","polarisation", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z"]
     summary_data = []
+
+    #filter out the floor!
+    filtered_data = updated_data[updated_data["individual_ID"].astype(str).str.len() < 3]
+
+    #Everything else only on filtered dataframe
     with open(summary_output_csv, mode='w') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(headers_summary)
         #median body length (scale every distance from this)
-        median_bl = updated_data["body_length"].median()
+        median_bl = filtered_data["body_length"].median()
 
         #Centre of  
-        centre_x = updated_data["x_mid"].mean()   
-        centre_y = updated_data["y_mid"].mean()
-        centre_z = updated_data["z_mid"].mean()
+        centre_x = filtered_data["x_mid"].mean()   
+        centre_y = filtered_data["y_mid"].mean()
+        centre_z = filtered_data["z_mid"].mean()
 
         #Sum up all the unit vectors and divide by count - basically average heading of school
-        summed_x = updated_data["heading_x"].sum()/updated_data["heading_x"].count()
-        summed_y = updated_data["heading_y"].sum()/updated_data["heading_y"].count()
-        summed_z = updated_data["heading_z"].sum()/updated_data["heading_z"].count()
+        summed_x = filtered_data["heading_x"].sum()/filtered_data["heading_x"].count()
+        summed_y = filtered_data["heading_y"].sum()/filtered_data["heading_y"].count()
+        summed_z = filtered_data["heading_z"].sum()/filtered_data["heading_z"].count()
 
         #Compute the magnitude of the averaged vector. yields a scalar value between 0 and 1
         polarisation = math.sqrt(summed_x**2 + summed_y**2 + summed_z**2)
 
         #Back individual
-        if (updated_data["x_head"] - updated_data["x_tail"]).mean() > 0:
-            mid_back_x = updated_data["x_mid"].min()
+        if (filtered_data["x_head"] - filtered_data["x_tail"]).mean() > 0:
+            mid_back_x = filtered_data["x_mid"].min()
 
-            mid_back_y = updated_data["y_mid"][updated_data["x_mid"] == mid_back_x].values[0]
-            mid_back_z = updated_data["z_mid"][updated_data["x_mid"] == mid_back_x].values[0]
+            mid_back_y = filtered_data["y_mid"][filtered_data["x_mid"] == mid_back_x].values[0]
+            mid_back_z = filtered_data["z_mid"][filtered_data["x_mid"] == mid_back_x].values[0]
         else:
-            mid_back_x = updated_data["x_mid"].max()
-            mid_back_y = updated_data["y_mid"][updated_data["x_mid"] == mid_back_x].values[0]
-            mid_back_z = updated_data["z_mid"][updated_data["x_mid"] == mid_back_x].values[0]
+            mid_back_x = filtered_data["x_mid"].max()
+            mid_back_y = filtered_data["y_mid"][filtered_data["x_mid"] == mid_back_x].values[0]
+            mid_back_z = filtered_data["z_mid"][filtered_data["x_mid"] == mid_back_x].values[0]
 
         #Highest individual
-        mid_high_y = updated_data["y_mid"].max()
-        mid_high_x = updated_data["x_mid"][updated_data["y_mid"] == mid_high_y].values[0]
-        mid_high_z = updated_data["z_mid"][updated_data["y_mid"] == mid_high_y].values[0]
+        mid_high_y = filtered_data["y_mid"].max()
+        mid_high_x = filtered_data["x_mid"][filtered_data["y_mid"] == mid_high_y].values[0]
+        mid_high_z = filtered_data["z_mid"][filtered_data["y_mid"] == mid_high_y].values[0]
         
 
         updated_row = [count, median_bl, centre_x, centre_y, centre_z, polarisation, mid_back_x, mid_back_y, mid_back_z, mid_high_x, mid_high_y, mid_high_z]
@@ -213,26 +225,17 @@ for filename in os.listdir(depth_path):
     rows = []
     updated_data = []
     headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group", "back_ind", "highest_ind", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "dist_to_back", "dist_to_highest", "norm_dist_to_back", "norm_dist_to_highest"]
-       
-    with open(output_csv, "r") as csvfile1:
-        reader = csv.reader(csvfile1)
-        header = next(reader)
-        for row in reader:
-            rows.append(row)
+    rows = filtered_data.to_dict("records")   
 
-    with open(output_csv, "w", newline="") as csvfile2:
-        writer = csv.writer(csvfile2)
-        writer.writerow(headers)  # Write headers
-
-        for i, focal in enumerate(rows):
+    for i, focal in enumerate(rows):
 
             #NND distances between centres of axes
-            fx = float(focal[13])
-            fy = float(focal[14])
-            fz = float(focal[15])
-            hi_x = float(focal[10])  
-            hi_y = float(focal[11])
-            hi_z = float(focal[12])
+            fx = float(focal["x_mid"])
+            fy = float(focal["y_mid"])
+            fz = float(focal["z_mid"])
+            hi_x = float(focal["heading_x"])  
+            hi_y = float(focal["heading_y"])
+            hi_z = float(focal["heading_z"])
 
             #Distance from centre of school
             dist_from_centre = math.sqrt((fx - centre_x)**2 + (fy - centre_y)**2 + (fz - centre_z)**2)
@@ -244,9 +247,9 @@ for filename in os.listdir(depth_path):
                 if i == j:
                     continue  # skip self
 
-                ox = float(other[13])
-                oy = float(other[14])
-                oz = float(other[15])
+                ox = float(other["x_mid"])
+                oy = float(other["y_mid"])
+                oz = float(other["z_mid"])
 
                 dist = math.sqrt(
                     (fx - ox)**2 +
@@ -261,9 +264,9 @@ for filename in os.listdir(depth_path):
             norm_nnd = min_nnd/median_bl
 
             # get nearest neighbour heading
-            hj_x = float(rows[nnd_id][10])
-            hj_y = float(rows[nnd_id][11])
-            hj_z = float(rows[nnd_id][12])
+            hj_x = float(rows[nnd_id]["heading_x"])
+            hj_y = float(rows[nnd_id]["heading_y"])
+            hj_z = float(rows[nnd_id]["heading_z"])
 
             # heading alignment (dot product, headings are unit vectors)
             heading_nn = hi_x * hj_x + hi_y * hj_y + hi_z * hj_z
@@ -305,12 +308,31 @@ for filename in os.listdir(depth_path):
             norm_dist_from_highest = dist_from_highest/median_bl
 
             # Append new metrics to the row
-            enriched_row = focal + [median_bl, norm_dist_from_centre, norm_nnd, heading_nn, heading_group, back_ind, highest_ind, mid_back_x, mid_back_y, mid_back_z, mid_high_x, mid_high_y, mid_high_z, dist_from_back, dist_from_highest, norm_dist_from_back, norm_dist_from_highest]
-            updated_data.append(enriched_row)
+            focal["median_body_length"] = median_bl
+            focal["dist_from_centre"] = norm_dist_from_centre
+            focal["NND"] = norm_nnd
+            focal["heading_nn"] = heading_nn
+            focal["heading_rel_to_group"] = heading_group
+            focal["back_ind"] = back_ind
+            focal["highest_ind"] = highest_ind
+            focal["mid_back_x"] = mid_back_x
+            focal["mid_back_y"] = mid_back_y
+            focal["mid_back_z"] = mid_back_z
+            focal["mid_high_x"] = mid_high_x
+            focal["mid_high_y"] = mid_high_y
+            focal["mid_high_z"] = mid_high_z
+            focal["dist_to_back"] = dist_from_back
+            focal["dist_to_highest"] = dist_from_highest
+            focal["norm_dist_to_back"] = norm_dist_from_back
+            focal["norm_dist_to_highest"] = norm_dist_from_highest
 
-            # Write row to CSV
-            writer.writerow(enriched_row)
+            # Append the updated dictionary to your list
+            updated_data.append(focal)  
 
+    with open(output_nnd_csv, "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headers)
+        writer.writeheader()
+        writer.writerows(updated_data)
 
     # Calculate group cohesion
     df = pd.DataFrame(updated_data, columns=headers)
@@ -344,7 +366,7 @@ df_out_summary.to_csv(f'{output_path}/summary_global.csv')
 
 #Write all individual files to one file
 individual_files = glob.glob(
-    os.path.join(output_path, "*individual.csv")
+    os.path.join(output_path, "*individual_nnd.csv")
 )
 
 individual_dfs = []
