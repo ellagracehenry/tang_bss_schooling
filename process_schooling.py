@@ -30,6 +30,10 @@ output_path = Path(args.output_path)
 count = 0
 
 for filename in os.listdir(depth_path):
+
+    if not filename.lower().endswith(".npy"):
+        continue
+
     filename_clean = os.path.splitext(filename)[0]
 
     output_csv = os.path.join(output_path, filename_clean + "_individual.csv")
@@ -176,7 +180,7 @@ for filename in os.listdir(depth_path):
     headers_summary = ["image_ID","median_bl","centre_x","centre_y","centre_z","polarisation", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z"]
     summary_data = []
 
-    #filter out the floor!
+    #filter out the floor! In an ideal world we want the depth to be created for the floor but then NA for the different metrics (so everything ends up in one dataframe)
     filtered_data = updated_data[updated_data["individual_ID"].astype(str).str.len() < 3]
 
     #Everything else only on filtered dataframe
@@ -200,15 +204,43 @@ for filename in os.listdir(depth_path):
         polarisation = math.sqrt(summed_x**2 + summed_y**2 + summed_z**2)
 
         #Back individual
-        if (filtered_data["x_head"] - filtered_data["x_tail"]).mean() > 0:
-            mid_back_x = filtered_data["x_mid"].min()
+        # Normalize the school's mean heading
+        heading_magnitude = math.sqrt(
+            summed_x**2 +
+            summed_y**2 +
+            summed_z**2
+        )
 
-            mid_back_y = filtered_data["y_mid"][filtered_data["x_mid"] == mid_back_x].values[0]
-            mid_back_z = filtered_data["z_mid"][filtered_data["x_mid"] == mid_back_x].values[0]
-        else:
-            mid_back_x = filtered_data["x_mid"].max()
-            mid_back_y = filtered_data["y_mid"][filtered_data["x_mid"] == mid_back_x].values[0]
-            mid_back_z = filtered_data["z_mid"][filtered_data["x_mid"] == mid_back_x].values[0]
+        #unit vector / normalise it
+        Px = summed_x / heading_magnitude
+        Py = summed_y / heading_magnitude
+        Pz = summed_z / heading_magnitude
+
+        # Position of each fish relative to school centre
+        dx = filtered_data["x_mid"] - centre_x
+        dy = filtered_data["y_mid"] - centre_y
+        dz = filtered_data["z_mid"] - centre_z
+
+        # Project each fish onto the 3D school heading
+        filtered_data = filtered_data.copy()
+
+        #Dot product - position relative to school centre * schools heading - where the fish sits along the schools heading axos. each fish gets number along axis
+        filtered_data["position_along_heading"] = (
+            dx * Px +
+            dy * Py +
+            dz * Pz
+        )
+
+        position_along_heading = filtered_data["position_along_heading"]
+
+        # Fish furthest BEHIND the school centre
+        back_idx = filtered_data["position_along_heading"].idxmin()
+
+        mid_back_x = filtered_data.loc[back_idx, "x_mid"]
+        mid_back_y = filtered_data.loc[back_idx, "y_mid"]
+        mid_back_z = filtered_data.loc[back_idx, "z_mid"]
+
+        back_individual_ID = filtered_data.loc[back_idx, "individual_ID"]
 
         #Highest individual
         mid_high_y = filtered_data["y_mid"].max()
@@ -224,7 +256,7 @@ for filename in os.listdir(depth_path):
 
     rows = []
     updated_data = []
-    headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group", "back_ind", "highest_ind", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "dist_to_back", "dist_to_highest", "norm_dist_to_back", "norm_dist_to_highest"]
+    headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group", "back_ind", "highest_ind", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "position_along_heading", "dist_to_back", "dist_to_highest", "norm_dist_to_back", "norm_dist_to_highest"]
     rows = filtered_data.to_dict("records")   
 
     for i, focal in enumerate(rows):
@@ -279,7 +311,7 @@ for filename in os.listdir(depth_path):
             heading_group = hi_x*Px + hi_y*Py + hi_z*Pz
 
             #back individual
-            if fx == mid_back_x:
+            if str(focal["individual_ID"]) == str(back_individual_ID):
                 back_ind = 1
             else:
                 back_ind = 0
@@ -321,16 +353,18 @@ for filename in os.listdir(depth_path):
             focal["mid_high_x"] = mid_high_x
             focal["mid_high_y"] = mid_high_y
             focal["mid_high_z"] = mid_high_z
+            focal["position_along_heading"] = float(focal["position_along_heading"])
             focal["dist_to_back"] = dist_from_back
             focal["dist_to_highest"] = dist_from_highest
             focal["norm_dist_to_back"] = norm_dist_from_back
             focal["norm_dist_to_highest"] = norm_dist_from_highest
+            
 
             # Append the updated dictionary to your list
             updated_data.append(focal)  
 
     with open(output_nnd_csv, "w", newline="") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=headers)
+        writer = csv.DictWriter(csvfile, fieldnames=headers, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(updated_data)
 
