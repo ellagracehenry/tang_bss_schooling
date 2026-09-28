@@ -48,10 +48,12 @@ for filename in os.listdir(depth_path):
 
     count += 1
 
-    headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid"]
+    headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid", "floor_distance"]
 
     updated_data = []
     temp_data = []
+    fish_temp_data = []
+    floor_temp_data = []
 
     #Calculate depth on all
     with open(output_csv, mode="w", newline="") as csvfile:
@@ -101,18 +103,31 @@ for filename in os.listdir(depth_path):
 
                 if head is None or tail is None:
                     continue
+                
+                if obj_id.startswith("floor"):
+                    floor_temp_data.append([
+                        filename_clean, count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail
+                    ])
 
-                temp_row = [filename_clean, count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail]
+                if len(obj_id) < 3:
+                    fish_temp_data.append([
+                        filename_clean, count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail
+                    ])
 
-                temp_data.append(temp_row)
+
+
+                #temp_row = [filename_clean, count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail]
+
+                #temp_data.append(temp_row)
 
         print("Raw Z indexed for head and tail...")
 
-        temp_data = pd.DataFrame(temp_data, columns=["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail"])
+        fish_temp_data = pd.DataFrame(fish_temp_data, columns=["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail"])
+        floor_temp_data = pd.DataFrame(floor_temp_data, columns=["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail"])
 
-        temp_data["individual_ID"] = temp_data["individual_ID"].astype(str)
+        fish_temp_data["individual_ID"] = fish_temp_data["individual_ID"].astype(str)
 
-        filtered_temp = temp_data[temp_data["individual_ID"].str.len() < 3]
+        filtered_temp = fish_temp_data[fish_temp_data["individual_ID"].str.len() < 3]
 
         #Centre x y z head
         x_centred_head = filtered_temp["x_head"] - filtered_temp["x_head"].mean()
@@ -129,19 +144,55 @@ for filename in os.listdir(depth_path):
         sf_z = spr_xy/spr_z_centred_head
 
         #Calculate scaled z head
-        z_centred_head = temp_data["z_head"] - filtered_temp["z_head"].mean()
+        z_centred_head = fish_temp_data["z_head"] - filtered_temp["z_head"].mean()
         z_head_scaled = sf_z * z_centred_head
 
         #Calculate scaled z tail       
-        z_centred_tail = temp_data["z_tail"] - filtered_temp["z_head"].mean()
+        z_centred_tail = fish_temp_data["z_tail"] - filtered_temp["z_head"].mean()
         z_tail_scaled = sf_z * z_centred_tail
 
         #Add to dataframe
-        temp_data["z_head_scaled"] = z_head_scaled
-        temp_data["z_tail_scaled"] = z_tail_scaled
+        fish_temp_data["z_head_scaled"] = z_head_scaled
+        fish_temp_data["z_tail_scaled"] = z_tail_scaled
+
+        #scale floor
+        floor_temp_data["z_head_scaled"] = (
+            sf_z * (
+                floor_temp_data["z_head"] - 
+                filtered_temp["z_head"].mean()
+            )
+        )
+
+        floor_temp_data["z_tail_scaled"] = (
+            sf_z * (
+                floor_temp_data["z_tail"] - 
+                filtered_temp["z_head"].mean()
+            )
+        )
+
+        #compute floor plane
+        floor_x = np.concatenate([
+            floor_temp_data["x_head"].to_numpy(),
+            floor_temp_data["x_tail"].to_numpy()
+        ])
+
+        floor_y = np.concatenate([
+            floor_temp_data["y_head"].to_numpy(),
+            floor_temp_data["y_tail"].to_numpy()
+        ])
+
+        floor_z = np.concatenate([
+            floor_temp_data["z_head_scaled"].to_numpy(),
+            floor_temp_data["z_tail_scaled"].to_numpy()
+        ])
+
+
+
+        A = np.c_[floor_x, floor_y, np.ones(len(floor_x))]
+        a,b,c = np.linalg.lstsq(A, floor_z, rcond = None)[0]
 
         #Convert to list of dicts for easy row access
-        for index, row in temp_data.iterrows():
+        for index, row in fish_temp_data.iterrows():
             x_head = row["x_head"]
             y_head = row["y_head"]
             x_tail = row["x_tail"]
@@ -163,10 +214,18 @@ for filename in os.listdir(depth_path):
             y_mid = (y_head+y_tail)/2
             z_mid = (z_head+z_tail)/2
 
+            #distance from floor
+            floor_distance = abs(
+                a * x_mid +
+                b * y_mid -
+                z_mid +
+                c
+            ) / math.sqrt(a**2 + b**2 + 1)
+
             updated_row = [filename_clean, count, obj_id, x_head, y_head, x_tail, y_tail, z_head, z_tail, 
                 body_length, 
                 heading_x, heading_y, heading_z,
-                x_mid, y_mid, z_mid
+                x_mid, y_mid, z_mid, floor_distance
             ]
 
             updated_data.append(updated_row)
@@ -233,6 +292,7 @@ for filename in os.listdir(depth_path):
 
         position_along_heading = filtered_data["position_along_heading"]
 
+        #Radial distance (perpendicular distance from centre line)
         radial_distance = np.sqrt(
             dx**2 + dy**2 + dz**2 - position_along_heading**2
         )
@@ -264,7 +324,7 @@ for filename in os.listdir(depth_path):
 
     rows = []
     updated_data = []
-    headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group", "back_ind", "highest_ind", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "position_along_heading", "radial_distance", "dist_to_back", "dist_to_highest", "norm_dist_to_back", "norm_dist_to_highest"]
+    headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","floor_distance","norm_floor_distance","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group", "back_ind", "highest_ind", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "position_along_heading", "radial_distance", "dist_to_back", "dist_to_highest", "norm_dist_to_back", "norm_dist_to_highest"]
     rows = filtered_data.to_dict("records")   
 
     for i, focal in enumerate(rows):
@@ -280,6 +340,8 @@ for filename in os.listdir(depth_path):
             #Distance from centre of school
             dist_from_centre = math.sqrt((fx - centre_x)**2 + (fy - centre_y)**2 + (fz - centre_z)**2)
             norm_dist_from_centre = dist_from_centre/median_bl
+
+            norm_floor_distance = float(focal["floor_distance"])/median_bl
         
             min_nnd = float("inf")
 
@@ -348,6 +410,7 @@ for filename in os.listdir(depth_path):
             norm_dist_from_highest = dist_from_highest/median_bl
 
             # Append new metrics to the row
+            focal["norm_floor_distance"] = norm_floor_distance
             focal["median_body_length"] = median_bl
             focal["dist_from_centre"] = norm_dist_from_centre
             focal["NND"] = norm_nnd
