@@ -292,12 +292,15 @@ for filename in os.listdir(depth_path):
 
         position_along_heading = filtered_data["position_along_heading"]
 
+        filtered_data["norm_position_along_heading"] = position_along_heading/median_bl
+
         #Radial distance (perpendicular distance from centre line)
         radial_distance = np.sqrt(
             dx**2 + dy**2 + dz**2 - position_along_heading**2
         )
 
         filtered_data["radial_distance"] = radial_distance
+        filtered_data["norm_radial_distance"] = radial_distance/median_bl
 
 
 
@@ -324,7 +327,7 @@ for filename in os.listdir(depth_path):
 
     rows = []
     updated_data = []
-    headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","floor_distance","norm_floor_distance","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group", "back_ind", "highest_ind", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "position_along_heading", "radial_distance", "dist_to_back", "dist_to_highest", "norm_dist_to_back", "norm_dist_to_highest"]
+    headers = ["image_name","image_ID", "individual_ID","x_head", "y_head", "x_tail","y_tail","z_head","z_tail","body_length","heading_x","heading_y","heading_z","x_mid","y_mid","z_mid","floor_distance","norm_floor_distance","median_body_length","dist_from_centre","NND","heading_nn","heading_rel_to_group", "back_ind", "highest_ind", "mid_back_x", "mid_back_y", "mid_back_z", "mid_high_x", "mid_high_y", "mid_high_z", "position_along_heading", "norm_position_along_heading", "radial_distance", "norm_radial_distance", "dist_to_back", "dist_to_highest", "norm_dist_to_back", "norm_dist_to_highest"]
     rows = filtered_data.to_dict("records")   
 
     for i, focal in enumerate(rows):
@@ -425,7 +428,9 @@ for filename in os.listdir(depth_path):
             focal["mid_high_y"] = mid_high_y
             focal["mid_high_z"] = mid_high_z
             focal["position_along_heading"] = float(focal["position_along_heading"])
+            focal["norm_position_along_heading"] = float(focal["norm_position_along_heading"])
             focal["radial_distance"] = float(focal["radial_distance"])
+            focal["norm_radial_distance"] = float(focal["norm_radial_distance"])
             focal["dist_to_back"] = dist_from_back
             focal["dist_to_highest"] = dist_from_highest
             focal["norm_dist_to_back"] = norm_dist_from_back
